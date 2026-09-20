@@ -18,11 +18,11 @@ async function fetchHomeData() {
       flashSaleRes,
       bannersRes
     ] = await Promise.all([
-      fetch(`${baseUrl}/categories/with-counts`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(3000) }),
-      fetch(`${baseUrl}/products/new-arrivals`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(3000) }),
-      fetch(`${baseUrl}/products/best-sellers`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(3000) }),
-      fetch(`${baseUrl}/products/flash-sale`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(3000) }),
-      fetch(`${baseUrl}/banners`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(3000) }),
+      fetch(`${baseUrl}/categories/with-counts`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(10000) }),
+      fetch(`${baseUrl}/products/new-arrivals`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(10000) }),
+      fetch(`${baseUrl}/products/best-sellers`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(10000) }),
+      fetch(`${baseUrl}/products/flash-sale`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(10000) }),
+      fetch(`${baseUrl}/banners`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(10000) }),
     ]);
 
     return {
