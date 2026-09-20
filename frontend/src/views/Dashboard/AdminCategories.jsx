@@ -59,19 +59,23 @@ export default function AdminCategories({ children }) {
   const [expandedIds, setExpandedIds] = useState({});
 
   const toggleExpand = (id) => {
-    setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
+    setExpandedIds((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }));
   };
 
   const expandAll = () => {
     const allObj = {};
-    categories.forEach((c) => {
-      allObj[c._id] = true;
+    (categories || []).forEach((c) => {
+      if (c._id) allObj[c._id] = true;
     });
     setExpandedIds(allObj);
   };
 
   const collapseAll = () => {
-    setExpandedIds({});
+    const allObj = {};
+    (categories || []).forEach((c) => {
+      if (c._id) allObj[c._id] = false;
+    });
+    setExpandedIds(allObj);
   };
 
   const { data, isLoading } = useQuery({
