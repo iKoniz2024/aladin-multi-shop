@@ -2,6 +2,7 @@ const { ObjectId } = require("mongodb");
 const { getDB } = require("../config/db");
 const { withCache, clearCache } = require("../utils/cache");
 const { buildIdQuery } = require("../utils/buildIdQuery");
+const { processImageUpload } = require("../utils/uploadHelper");
 
 const createBanner = async (req, res) => {
     try {
@@ -9,10 +10,11 @@ const createBanner = async (req, res) => {
         const bannersCollection = db.collection("banners");
 
         const { title, image, link, isActive } = req.body;
+        const uploadedImage = await processImageUpload(image || "");
 
         const newBanner = {
             title: title || "",
-            image: image || "",
+            image: uploadedImage || "",
             link: link || "",
             isActive: isActive !== undefined ? (isActive === true || isActive === "true") : true,
             createdAt: new Date(),
@@ -68,9 +70,15 @@ const updateBanner = async (req, res) => {
         const { id } = req.params;
         const db = getDB();
         const bannersCollection = db.collection("banners");
+
+        const updateData = { ...req.body, updatedAt: new Date() };
+        if (updateData.image) {
+            updateData.image = await processImageUpload(updateData.image);
+        }
+
         const result = await bannersCollection.updateOne(
             buildIdQuery(id),
-            { $set: { ...req.body, updatedAt: new Date() } }
+            { $set: updateData }
         );
         if (result.matchedCount === 0) {
             return res.status(404).send({ message: "Banner not found" });
