@@ -100,10 +100,10 @@ export default function Checkout({ children }) {
   useEffect(() => {
     if (items.length > 0) {
       trackPixelEvent("InitiateCheckout", {
-        content_ids: items.map((item) => item.productId),
+        content_ids: items.map((item) => String(item.productId || item._id)),
         content_type: "product",
-        num_items: totalItems,
-        value: totalPrice,
+        num_items: Number(totalItems) || 1,
+        value: Number(totalPrice) || 0,
         currency: "BDT",
       });
     }
@@ -113,10 +113,10 @@ export default function Checkout({ children }) {
     mutationFn: createGuestOrder,
     onSuccess: (data) => {
       trackPixelEvent("Purchase", {
-        content_ids: items.map((item) => item.productId),
+        content_ids: items.map((item) => String(item.productId || item._id)),
         content_type: "product",
-        num_items: totalItems,
-        value: total,
+        num_items: Number(totalItems) || 1,
+        value: Number(total) || 0,
         currency: "BDT",
       });
       toast.success("Order placed successfully! Please check your email (Inbox or Spam) for invoice.", { duration: 6000 });

@@ -332,10 +332,11 @@ export default function AdminSettings({ children }) {
             <div>
               <label className="mb-1 block text-sm font-medium text-foreground">Access Token</label>
               <Input
-                type="password"
-                value={displayMetaAccessToken}
+                type="text"
+                autoComplete="off"
+                value={displayMetaAccessToken === "aladiinnshop" ? "" : displayMetaAccessToken}
                 onChange={(e) => { setTokenEdited(true); setMetaAccessToken(e.target.value); }}
-                placeholder="EAA19QSSR708..."
+                placeholder="e.g. EAAGm0PX4ZC0BA..."
               />
             </div>
             <div>
@@ -390,15 +391,16 @@ export default function AdminSettings({ children }) {
                       className="w-full md:w-1/4"
                     />
                     <Input
-                      type="password"
-                      value={pixel.accessToken || ""}
+                      type="text"
+                      autoComplete="off"
+                      value={pixel.accessToken === "aladiinnshop" ? "" : (pixel.accessToken || "")}
                       onChange={(e) => {
                         setPixelsEdited(true);
                         const updated = [...displayMetaPixels];
                         updated[index] = { ...updated[index], accessToken: e.target.value };
                         setMetaPixels(updated);
                       }}
-                      placeholder="Access Token"
+                      placeholder="Access Token (e.g. EAAGm0...)"
                       className="w-full md:w-1/3"
                     />
                     <Input

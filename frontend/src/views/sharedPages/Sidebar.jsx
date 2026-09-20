@@ -113,12 +113,18 @@ export default function Sidebar({ open, onClose }) {
       >
         <div>
           {/* Logo Header */}
-          <div className="px-2 py-3 mb-2 flex items-center justify-between border-b border-border/60">
-            <Link href="/" className="flex items-center">
+          <div className="py-5 px-2 mb-4 flex items-center justify-center border-b border-border/60 min-h-[110px]">
+            <Link href="/" className="flex items-center justify-center w-full transition-transform hover:scale-[1.03]">
               {logo ? (
-                <img src={logo} alt={siteName} className="h-9 w-auto object-contain dark:invert" />
+                <img
+                  src={logo}
+                  alt={siteName || "Logo"}
+                  className="h-24 max-h-28 w-auto max-w-[220px] object-contain mx-auto"
+                />
               ) : (
-                <span suppressHydrationWarning className="text-lg font-black text-foreground">{siteName || "Aladiinn Shop"}</span>
+                <span suppressHydrationWarning className="text-3xl font-black text-foreground tracking-tight text-center">
+                  {siteName || "Aladiinn Shop"}
+                </span>
               )}
             </Link>
           </div>
