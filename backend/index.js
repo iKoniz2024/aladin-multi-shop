@@ -19,6 +19,7 @@ const bannerRoutes = require("./routes/banner.route");
 const vendorRoutes = require("./routes/vendor.route");
 const attributeRoutes = require("./routes/attributes.route");
 const collectionRoutes = require("./routes/collections.route");
+const { rateLimiter } = require("./middlewares/rateLimiter");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -26,6 +27,7 @@ const port = process.env.PORT || 5000;
 const clientUrl = process.env.CLIENT_URL ? process.env.CLIENT_URL.replace(/\/$/, "") : "";
 const allowedOrigins = [
     clientUrl,
+    "https://aladiinnshoping.vercel.app",
     "http://localhost:3000",
     "http://localhost:3001",
 ].filter(Boolean);
@@ -35,7 +37,7 @@ app.use(
         origin: function (origin, callback) {
             if (!origin) return callback(null, true);
             const cleanOrigin = origin.replace(/\/$/, "");
-            if (allowedOrigins.includes(cleanOrigin) || process.env.NODE_ENV !== "production") {
+            if (allowedOrigins.some(o => o && cleanOrigin.startsWith(o)) || process.env.NODE_ENV !== "production") {
                 return callback(null, true);
             }
             return callback(new Error("Not allowed by CORS"));
@@ -59,14 +61,17 @@ if (process.env.VERCEL) {
     });
 }
 
-app.use("/api/auth", authRoutes);
+const authLimiter = rateLimiter({ windowMs: 15 * 60 * 1000, max: 50, message: { message: "Too many login/register attempts. Please try again later." } });
+const orderLimiter = rateLimiter({ windowMs: 15 * 60 * 1000, max: 30, message: { message: "Too many order submissions. Please try again later." } });
+
+app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/attributes", attributeRoutes);
 app.use("/api/collections", collectionRoutes);
 app.use("/api/cart", cartRoutes);
-app.use("/api/orders", orderRoutes);
+app.use("/api/orders", orderLimiter, orderRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/banners", bannerRoutes);
 app.use("/api/vendors", vendorRoutes);

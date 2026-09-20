@@ -106,7 +106,7 @@ const createCategory = async (req, res) => {
 
 const getCategoriesWithCounts = async (req, res) => {
     try {
-        const categoriesWithCounts = await withCache("categoriesWithCounts", 15, async () => {
+        const categoriesWithCounts = await withCache("categoriesWithCounts", 120, async () => {
             const db = getDB();
             const categoriesCollection = db.collection("categories");
             const productsCollection = db.collection("products");

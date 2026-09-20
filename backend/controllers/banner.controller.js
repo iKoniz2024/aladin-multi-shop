@@ -11,10 +11,10 @@ const createBanner = async (req, res) => {
         const { title, image, link, isActive } = req.body;
 
         const newBanner = {
-            title,
-            image,
-            link,
-            isActive,
+            title: title || "",
+            image: image || "",
+            link: link || "",
+            isActive: isActive !== undefined ? (isActive === true || isActive === "true") : true,
             createdAt: new Date(),
             updatedAt: new Date()
         };
@@ -35,7 +35,7 @@ const createBanner = async (req, res) => {
 
 const getAllBanners = async (req, res) => {
     try {
-        const banners = await withCache("banners", 15, async () => {
+        const banners = await withCache("banners", 120, async () => {
             const db = getDB();
             const bannersCollection = db.collection("banners");
             return await bannersCollection.find({}).sort({ createdAt: -1 }).toArray();

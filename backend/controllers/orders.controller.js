@@ -22,7 +22,7 @@ const createOrder = async (req, res) => {
         const productsCollection = db.collection("products");
         const ordersCollection = db.collection("orders");
 
-        const cart = await cartsCollection.aggregate([
+        const rawCart = await cartsCollection.aggregate([
             {
                 $match: {
                     userId: new ObjectId(req.user.id),
@@ -47,27 +47,40 @@ const createOrder = async (req, res) => {
                     productId: "$product._id",
                     title: "$product.title",
                     thumbnail: { $ifNull: ["$items.colorImage", "$product.thumbnail"] },
-                    price: "$product.price",
+                    rawPrice: "$product.price",
+                    discountPercentage: { $ifNull: ["$product.discountPercentage", 0] },
                     quantity: "$items.quantity",
                     size: "$items.size",
                     color: "$items.color",
                     colorImage: "$items.colorImage",
-                    subtotal: {
-                        $multiply: [
-                            "$items.quantity",
-                            "$product.price",
-                        ],
-                    },
                     vendorId: "$product.vendorId",
                 },
             },
         ]).toArray();
 
-        if (!cart.length) {
+        if (!rawCart.length) {
             return res.status(400).send({
                 message: "Cart is empty",
             });
         }
+
+        const cart = rawCart.map(item => {
+            const effectivePrice = item.discountPercentage > 0
+                ? Number((item.rawPrice * (1 - item.discountPercentage / 100)).toFixed(2))
+                : item.rawPrice;
+            return {
+                productId: item.productId,
+                title: item.title,
+                thumbnail: item.thumbnail,
+                price: effectivePrice,
+                quantity: item.quantity,
+                size: item.size,
+                color: item.color,
+                colorImage: item.colorImage,
+                subtotal: Number((item.quantity * effectivePrice).toFixed(2)),
+                vendorId: item.vendorId,
+            };
+        });
 
         for (const item of cart) {
             const product = await productsCollection.findOne({
@@ -137,11 +150,11 @@ const createOrder = async (req, res) => {
             userId: new ObjectId(req.user.id),
         });
 
-        // Deduct product stock
+        // Deduct product stock atomically
         for (const item of cart) {
             if (item.productId) {
                 const updatedProduct = await productsCollection.findOneAndUpdate(
-                    { _id: new ObjectId(item.productId) },
+                    { _id: new ObjectId(item.productId), stock: { $gte: item.quantity } },
                     { $inc: { stock: -item.quantity } },
                     { returnDocument: "after" }
                 );
@@ -206,16 +219,20 @@ const createGuestOrder = async (req, res) => {
                 });
             }
 
+            const effectivePrice = product.discountPercentage > 0
+                ? Number((product.price * (1 - product.discountPercentage / 100)).toFixed(2))
+                : product.price;
+
             cart.push({
                 productId: product._id,
                 title: product.title,
                 thumbnail: item.colorImage || item.thumbnail || product.thumbnail,
-                price: product.price,
+                price: effectivePrice,
                 quantity: item.quantity,
                 size: item.size || "",
                 color: item.color || "",
                 colorImage: item.colorImage || "",
-                subtotal: item.quantity * product.price,
+                subtotal: Number((item.quantity * effectivePrice).toFixed(2)),
                 vendorId: product.vendorId ? product.vendorId.toString() : null,
             });
         }
@@ -252,11 +269,11 @@ const createGuestOrder = async (req, res) => {
         const result = await ordersCollection.insertOne(order);
         order._id = result.insertedId;
 
-        // Deduct product stock
+        // Deduct product stock atomically
         for (const item of cart) {
             if (item.productId) {
                 const updatedProduct = await productsCollection.findOneAndUpdate(
-                    { _id: new ObjectId(item.productId) },
+                    { _id: new ObjectId(item.productId), stock: { $gte: item.quantity } },
                     { $inc: { stock: -item.quantity } },
                     { returnDocument: "after" }
                 );

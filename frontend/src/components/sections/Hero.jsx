@@ -81,7 +81,7 @@ export default function Hero({ initialData }) {
 
   const banners = useMemo(() => {
     const data = Array.isArray(bannerData) ? bannerData : bannerData?.banners || [];
-    return data.filter((b) => b.isActive && (b.image || b.images?.length > 0));
+    return data.filter((b) => b.isActive !== false && b.isActive !== "false" && (b.image || b.images?.length > 0 || b.thumbnail));
   }, [bannerData]);
 
   const flashProducts = useMemo(() => {
@@ -120,9 +120,9 @@ export default function Hero({ initialData }) {
                 >
                   {banners.map((banner) => (
                     <SwiperSlide key={banner._id}>
-                      <Link href="/products" className="block size-full relative overflow-hidden bg-slate-950 flex items-center justify-center">
+                      <Link href={banner.link || "/products"} className="block size-full relative overflow-hidden bg-slate-950 flex items-center justify-center">
                         <img
-                          src={banner.image || banner.images?.[0]}
+                          src={banner.image || banner.images?.[0] || banner.thumbnail}
                           alt={banner.title || "Promotional Banner"}
                           className="size-full object-cover object-center"
                         />

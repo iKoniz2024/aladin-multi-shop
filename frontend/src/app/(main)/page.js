@@ -10,38 +10,42 @@ export const dynamic = 'force-dynamic';
 async function fetchHomeData() {
   const baseUrl = getApiUrl();
 
-  try {
-    const [
-      categoriesRes,
-      newArrivalsRes,
-      bestSellingRes,
-      flashSaleRes,
-      bannersRes
-    ] = await Promise.all([
-      fetch(`${baseUrl}/categories/with-counts`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(10000) }),
-      fetch(`${baseUrl}/products/new-arrivals`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(10000) }),
-      fetch(`${baseUrl}/products/best-sellers`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(10000) }),
-      fetch(`${baseUrl}/products/flash-sale`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(10000) }),
-      fetch(`${baseUrl}/banners`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(10000) }),
-    ]);
+  const fetchSafeJson = async (url, fallback) => {
+    try {
+      const res = await fetch(url, {
+        next: { revalidate: 60 },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      console.warn(`Fetch timed out or failed for ${url}:`, err.message);
+    }
+    return fallback;
+  };
 
-    return {
-      categoriesData: categoriesRes.ok ? await categoriesRes.json() : [],
-      newArrivalsData: newArrivalsRes.ok ? await newArrivalsRes.json() : { products: [] },
-      bestSellingData: bestSellingRes.ok ? await bestSellingRes.json() : { products: [] },
-      flashSaleData: flashSaleRes.ok ? await flashSaleRes.json() : { products: [] },
-      bannersData: bannersRes.ok ? await bannersRes.json() : [],
-    };
-  } catch (err) {
-    console.error("Failed to fetch home page data:", err.message);
-    return {
-      categoriesData: [],
-      newArrivalsData: { products: [] },
-      bestSellingData: { products: [] },
-      flashSaleData: { products: [] },
-      bannersData: [],
-    };
-  }
+  const [
+    categoriesData,
+    newArrivalsData,
+    bestSellingData,
+    flashSaleData,
+    bannersData,
+  ] = await Promise.all([
+    fetchSafeJson(`${baseUrl}/categories/with-counts`, []),
+    fetchSafeJson(`${baseUrl}/products/new-arrivals`, { products: [] }),
+    fetchSafeJson(`${baseUrl}/products/best-sellers`, { products: [] }),
+    fetchSafeJson(`${baseUrl}/products/flash-sale`, { products: [] }),
+    fetchSafeJson(`${baseUrl}/banners`, []),
+  ]);
+
+  return {
+    categoriesData,
+    newArrivalsData,
+    bestSellingData,
+    flashSaleData,
+    bannersData,
+  };
 }
 
 export default async function Page() {

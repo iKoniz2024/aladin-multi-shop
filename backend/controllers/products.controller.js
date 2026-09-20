@@ -2,6 +2,7 @@ const { ObjectId } = require("mongodb");
 const { getDB } = require("../config/db");
 const { withCache, clearCache } = require("../utils/cache");
 const { buildIdQuery } = require("../utils/buildIdQuery");
+const { processImageUpload } = require("../utils/uploadHelper");
 
 const createProduct = async (req, res) => {
     try {
@@ -80,7 +81,9 @@ const createProduct = async (req, res) => {
             minimumOrderQuantity: normalizedMinimumOrderQuantity,
             sizes: sizes || [],
             sizeMeasurements: sizeMeasurements || [],
-            colors: colors || [],
+            colors: Array.isArray(colors)
+                ? await Promise.all(colors.map(async (c) => ({ ...c, image: await processImageUpload(c.image) })))
+                : [],
             attributes: attributes || {},
             variants: Array.isArray(variants) ? variants : [],
 
@@ -92,8 +95,10 @@ const createProduct = async (req, res) => {
             },
 
             vendorId: req.user ? req.user.id : null,
-            images: images || [],
-            thumbnail: thumbnail || ""
+            images: Array.isArray(images)
+                ? await Promise.all(images.map((img) => processImageUpload(img)))
+                : [],
+            thumbnail: await processImageUpload(thumbnail || "")
         };
 
         const result = await productsCollection.insertOne(newProduct);
@@ -116,71 +121,99 @@ const getBestSellingProductsInternal = async (db) => {
     const productsCollection = db.collection("products");
     const ordersCollection = db.collection("orders");
 
-    let products = await ordersCollection
-        .aggregate([
-            { $unwind: "$items" },
-            {
-                $project: {
-                    productId: {
-                        $cond: {
-                            if: { $eq: [{ $type: "$items.productId" }, "string"] },
-                            then: {
-                                $convert: {
-                                    input: "$items.productId",
-                                    to: "objectId",
-                                    onError: "$items.productId",
-                                    onNull: "$items.productId"
-                                }
-                            },
-                            else: "$items.productId"
+    let products = [];
+    try {
+        products = await ordersCollection
+            .aggregate([
+                { $unwind: "$items" },
+                {
+                    $project: {
+                        productId: {
+                            $cond: {
+                                if: { $eq: [{ $type: "$items.productId" }, "string"] },
+                                then: {
+                                    $convert: {
+                                        input: "$items.productId",
+                                        to: "objectId",
+                                        onError: "$items.productId",
+                                        onNull: "$items.productId"
+                                    }
+                                },
+                                else: "$items.productId"
+                            }
+                        },
+                        quantity: "$items.quantity"
+                    }
+                },
+                {
+                    $group: {
+                        _id: "$productId",
+                        totalSold: { $sum: "$quantity" }
+                    }
+                },
+                { $sort: { totalSold: -1 } },
+                { $limit: 15 },
+                {
+                    $lookup: {
+                        from: "products",
+                        localField: "_id",
+                        foreignField: "_id",
+                        as: "product"
+                    }
+                },
+                { $unwind: "$product" },
+                {
+                    $replaceRoot: {
+                        newRoot: {
+                            $mergeObjects: ["$product", { totalSold: "$totalSold" }]
                         }
-                    },
-                    quantity: "$items.quantity"
-                }
-            },
-            {
-                $group: {
-                    _id: "$productId",
-                    totalSold: { $sum: "$quantity" }
-                }
-            },
-            { $sort: { totalSold: -1 } },
-            { $limit: 15 },
-            {
-                $lookup: {
-                    from: "products",
-                    localField: "_id",
-                    foreignField: "_id",
-                    as: "product"
-                }
-            },
-            { $unwind: "$product" },
-            {
-                $replaceRoot: {
-                    newRoot: {
-                        $mergeObjects: ["$product", { totalSold: "$totalSold" }]
+                    }
+                },
+                {
+                    $project: {
+                        description: 0,
+                        dimensions: 0,
+                        reviews: 0,
+                        images: 0,
+                        warrantyInformation: 0,
+                        shippingInformation: 0,
+                        returnPolicy: 0,
+                        meta: 0,
+                        tags: 0,
+                        sku: 0,
+                        weight: 0,
+                        availabilityStatus: 0,
+                        minimumOrderQuantity: 0
                     }
                 }
-            },
-            {
-                $project: {
-                    description: 0,
-                    dimensions: 0,
-                    reviews: 0,
-                    images: 0,
-                    warrantyInformation: 0,
-                    shippingInformation: 0,
-                    returnPolicy: 0,
-                    meta: 0,
-                    tags: 0,
-                    sku: 0,
-                    weight: 0,
-                    availabilityStatus: 0,
-                    minimumOrderQuantity: 0
-                }
-            }
-        ])
-        .toArray();
+            ])
+            .toArray();
+    } catch (e) {
+        console.error("Best-selling aggregation failed, using fallback:", e.message);
+    }
+
+    if (!products || products.length === 0) {
+        products = await productsCollection
+            .find({})
+            .project({
+                description: 0,
+                dimensions: 0,
+                reviews: 0,
+                images: 0,
+                warrantyInformation: 0,
+                shippingInformation: 0,
+                returnPolicy: 0,
+                meta: 0,
+                tags: 0,
+                sku: 0,
+                weight: 0,
+                availabilityStatus: 0,
+                minimumOrderQuantity: 0
+            })
+            .sort({ rating: -1, _id: -1 })
+            .limit(12)
+            .toArray();
+    }
 
     return products.map(product => ({
         ...product,
@@ -462,7 +495,7 @@ const deleteProduct = async (req, res) => {
 
 const getFlashSaleProducts = async (req, res) => {
     try {
-        const { products, maxStock } = await withCache("flashSaleProducts", 10, async () => {
+        const { products, maxStock } = await withCache("flashSaleProducts", 120, async () => {
             const db = getDB();
             const productsCollection = db.collection("products");
 
@@ -532,7 +565,7 @@ const getFlashSaleProducts = async (req, res) => {
 
 const getBestSellingProducts = async (req, res) => {
     try {
-        const result = await withCache("bestSellingProducts", 15, async () => {
+        const result = await withCache("bestSellingProducts", 120, async () => {
             const db = getDB();
             return await getBestSellingProductsInternal(db);
         });
@@ -546,7 +579,7 @@ const getBestSellingProducts = async (req, res) => {
 
 const getNewArrivals = async (req, res) => {
     try {
-        const products = await withCache("newArrivals", 15, async () => {
+        const products = await withCache("newArrivals", 120, async () => {
             const db = getDB();
             const productsCollection = db.collection("products");
 
