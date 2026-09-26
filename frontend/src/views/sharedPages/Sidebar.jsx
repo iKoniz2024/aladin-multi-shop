@@ -15,7 +15,8 @@ import {
   Home,
   Store,
   ShieldCheck,
-  Package
+  Package,
+  X
 } from "lucide-react";
 
 export default function Sidebar({ open, onClose }) {
@@ -102,31 +103,40 @@ export default function Sidebar({ open, onClose }) {
     <>
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-100 bg-black/60 backdrop-blur-xs lg:hidden"
           onClick={onClose}
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-card p-4 transition-transform duration-200 lg:static lg:translate-x-0 flex flex-col justify-between ${open ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-100 w-64 border-r border-border bg-card p-4 transition-transform duration-200 lg:static lg:translate-x-0 flex flex-col justify-between ${open ? "translate-x-0" : "-translate-x-full"
           }`}
       >
         <div>
-          {/* Logo Header */}
-          <div className="py-5 px-2 mb-4 flex items-center justify-center border-b border-border/60 min-h-[110px]">
-            <Link href="/" className="flex items-center justify-center w-full transition-transform hover:scale-[1.03]">
+          {/* Logo & Close Header */}
+          <div className="relative py-3 px-1 mb-4 flex items-center justify-between border-b border-border/60 min-h-[90px]">
+            <Link href="/" onClick={onClose} className="flex items-center justify-center flex-1 transition-transform hover:scale-[1.02]">
               {logo ? (
                 <img
                   src={logo}
                   alt={siteName || "Logo"}
-                  className="h-24 max-h-28 w-auto max-w-[220px] object-contain mx-auto"
+                  className="h-16 max-h-20 w-auto max-w-[170px] object-contain mx-auto"
                 />
               ) : (
-                <span suppressHydrationWarning className="text-3xl font-black text-foreground tracking-tight text-center">
+                <span suppressHydrationWarning className="text-2xl font-black text-foreground tracking-tight text-center">
                   {siteName || "Aladiinn Shop"}
                 </span>
               )}
             </Link>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex lg:hidden size-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer shrink-0 ml-1"
+              title="Close Menu"
+              aria-label="Close Menu"
+            >
+              <X className="size-4" />
+            </button>
           </div>
 
           {/* Role Header Badge */}

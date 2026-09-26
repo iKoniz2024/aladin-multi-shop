@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from "react";
 
 import { motion } from "framer-motion";
-import { ShoppingCart, Eye } from "lucide-react";
+import { ShoppingCart, Eye, Zap } from "lucide-react";
 import { formatBDT } from "@/utils/currency";
 import OrderModal from "@/components/ui/OrderModal";
 import ProductImageModal from "@/components/ui/ProductImageModal";
@@ -74,7 +74,7 @@ export default function NewArrivalsProductCard({ product, index }) {
             transition: { delay: i * 0.05, duration: 0.3 },
           }),
         }}
-        className="shrink-0 w-[240px] sm:w-[265px]"
+        className="shrink-0 w-[165px] xs:w-[185px] sm:w-[220px] md:w-[250px]"
       >
         <div className="group flex flex-col h-full w-full overflow-hidden rounded-2xl border border-border bg-card shadow-2xs transition-all duration-300 hover:shadow-md">
           <Link href={`/product/${product._id}`} className="relative h-[165px] sm:h-[180px] w-full overflow-hidden bg-muted/40 block shrink-0 p-2 flex items-center justify-center group/img">
@@ -133,11 +133,11 @@ export default function NewArrivalsProductCard({ product, index }) {
               <button
                 disabled={isOutOfStock || isAdminOrVendor}
                 onClick={handleDirectAddToCart}
-                title={isAdminOrVendor ? "Admins cannot purchase" : "Add to Cart"}
-                className={`w-full flex items-center justify-center gap-1.5 rounded-full border border-border bg-secondary hover:bg-secondary/80 text-secondary-foreground py-1.5 px-3 text-[10px] sm:text-xs font-extrabold transition-all ${isOutOfStock || isAdminOrVendor ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} shadow-2xs`}
+                title={isAdminOrVendor ? "Admins cannot purchase" : "Order Now"}
+                className={`w-full flex items-center justify-center gap-1.5 rounded-full btn-action-gold py-1.5 px-3 text-[10px] sm:text-xs font-extrabold transition-all ${isOutOfStock || isAdminOrVendor ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} shadow-xs`}
               >
-                <ShoppingCart className="size-3.5 shrink-0 text-secondary-foreground" />
-                <span>Add to Cart</span>
+                <Zap className="size-3.5 fill-current shrink-0" />
+                <span>{isOutOfStock ? "Unavailable" : "Order Now"}</span>
               </button>
             </div>
           </div>

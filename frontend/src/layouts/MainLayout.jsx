@@ -9,7 +9,7 @@ import StickyCardDrawer from "@/components/shared/StickyCardDrawer";
 export default function MainLayout({ children }) {
   return (
     <>
-      <div>
+      <div className="pb-16 lg:pb-0">
 
         <Navbar />
 

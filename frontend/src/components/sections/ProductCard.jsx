@@ -128,10 +128,10 @@ export default function ProductCard({ product, index, badge }) {
             transition: { delay: i * 0.08, duration: 0.5, ease: [0.22, 1, 0.36, 1] },
           }),
         }}
-        className="w-[270px] max-w-full h-auto mx-auto shrink-0"
+        className="w-full h-auto mx-auto"
       >
         <div className={`group flex h-auto w-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${badgeConfig[effectiveBadge]?.ring ?? ""}`}>
-          <Link href={`/product/${product._id}`} className="relative h-[180px] w-full overflow-hidden bg-muted/40 block shrink-0 p-2 flex items-center justify-center group/img">
+          <Link href={`/product/${product._id}`} className="relative h-[145px] sm:h-[180px] w-full overflow-hidden bg-muted/40 block shrink-0 p-2 flex items-center justify-center group/img">
             <img
               src={product.thumbnail || product.images?.[0] || undefined}
               alt={product.title}
@@ -188,11 +188,13 @@ export default function ProductCard({ product, index, badge }) {
                 <span className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-semibold truncate">
                   {product.shopName || product.shop?.name || siteName}
                 </span>
-                <div className="flex items-center gap-0.5 text-[#FFA800]">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="size-2.5 fill-current" />
-                  ))}
-                </div>
+                {product.rating > 0 && (
+                  <div className="flex items-center gap-0.5 text-[#FFA800]">
+                    {Array.from({ length: Math.min(5, Math.round(product.rating)) }).map((_, i) => (
+                      <Star key={i} className="size-2.5 fill-current" />
+                    ))}
+                  </div>
+                )}
               </div>
 
               <Link href={`/product/${product._id}`} className="block">
@@ -232,7 +234,7 @@ export default function ProductCard({ product, index, badge }) {
                 disabled={isOutOfStock || isAdminOrVendor}
                 onClick={handleDirectAddToCart}
                 title={isAdminOrVendor ? "Admins cannot purchase" : "Add to Cart"}
-                className={`min-w-0 flex-1 flex items-center justify-center gap-1 rounded-full border border-border bg-secondary hover:bg-secondary/80 text-secondary-foreground py-1.5 px-2 text-[9px] sm:text-[10px] font-extrabold transition-all ${isOutOfStock || isAdminOrVendor ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} shadow-2xs`}
+                className={`hidden sm:flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-border bg-secondary hover:bg-secondary/80 text-secondary-foreground py-1.5 px-2 text-[10px] font-extrabold transition-all ${isOutOfStock || isAdminOrVendor ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} shadow-2xs`}
               >
                 <ShoppingCart className="size-3 shrink-0 text-secondary-foreground" />
                 <span className="truncate whitespace-nowrap">Add to Cart</span>
@@ -241,10 +243,10 @@ export default function ProductCard({ product, index, badge }) {
                 disabled={isOutOfStock || isAdminOrVendor}
                 onClick={handleDirectOrderNow}
                 title={isAdminOrVendor ? "Admins cannot purchase" : "Order Now"}
-                className={`min-w-0 flex-1 flex items-center justify-center gap-1 rounded-full btn-action-gold py-1.5 px-2 text-[9px] sm:text-[10px] font-extrabold transition-all duration-200 active:scale-[0.98] ${isOutOfStock || isAdminOrVendor ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} shadow-xs`}
+                className={`w-full sm:flex-1 flex items-center justify-center gap-1.5 rounded-full btn-action-gold py-1.5 px-3 text-[11px] sm:text-[10px] font-extrabold transition-all duration-200 active:scale-[0.98] ${isOutOfStock || isAdminOrVendor ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} shadow-xs`}
               >
-                <Zap className="size-3 fill-current shrink-0" />
-                <span className="truncate whitespace-nowrap">{isOutOfStock ? "Unavailable" : "Order Now"}</span>
+                <Zap className="size-3.5 sm:size-3 fill-current shrink-0" />
+                <span className="whitespace-nowrap">{isOutOfStock ? "Unavailable" : "Order Now"}</span>
               </button>
             </div>
           </div>

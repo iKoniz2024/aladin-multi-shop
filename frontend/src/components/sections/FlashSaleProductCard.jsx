@@ -105,10 +105,10 @@ export default function FlashSaleProductCard({ product, index, maxStock }) {
             transition: { delay: i * 0.08, duration: 0.5, ease: [0.22, 1, 0.36, 1] },
           }),
         }}
-        className="w-[270px] max-w-full h-auto mx-auto"
+        className="w-full h-auto mx-auto"
       >
         <div className="group flex h-auto w-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-          <Link href={`/product/${product._id}`} className="relative h-[180px] w-full overflow-hidden bg-muted/40 block shrink-0 p-2 flex items-center justify-center group/img">
+          <Link href={`/product/${product._id}`} className="relative h-[145px] sm:h-[180px] w-full overflow-hidden bg-muted/40 block shrink-0 p-2 flex items-center justify-center group/img">
             <img
               src={product.thumbnail || product.images?.[0] || undefined}
               alt={product.title}

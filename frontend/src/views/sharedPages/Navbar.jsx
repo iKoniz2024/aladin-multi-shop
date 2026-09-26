@@ -16,6 +16,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { getProducts } from "@/services/product.api";
 import { formatBDT } from "@/utils/currency";
 
+import BottomNav from "@/components/shared/BottomNav";
+
 const Navbar = () => {
     const { cartCount, refetchCartCount } = useCart();
     const { theme, toggleTheme } = useTheme();
@@ -26,6 +28,7 @@ const Navbar = () => {
     const [search, setSearch] = useState("");
     const [searchFocused, setSearchFocused] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
     const [mobileCatOpen, setMobileCatOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
@@ -81,34 +84,47 @@ const Navbar = () => {
     }, [pathname]);
 
     return (
-        <header className="sticky top-0 z-100 bg-[#0B3C73] text-white border-b border-white/10 shadow-xs dark:bg-[#081a30] dark:text-white dark:border-slate-800">
+        <>
+            <header className="sticky top-0 z-100 bg-[#0B3C73] text-white border-b border-white/10 shadow-xs dark:bg-[#081a30] dark:text-white dark:border-slate-800">
             {/* Top Header */}
             <div className="bg-[#0B3C73] dark:bg-[#081a30]">
-                <div className="mx-auto flex h-16 sm:h-20 max-w-7xl items-center justify-between px-4 gap-4">
-                    {/* Logo */}
-                    <Link href="/" className="flex items-center shrink-0">
-                        {logo ? (
-                            <img src={logo} alt={siteName || "Logo"} className="h-9 sm:h-12 w-auto object-contain" />
-                        ) : siteName ? (
-                            <span suppressHydrationWarning className="text-xl sm:text-2xl font-black text-primary dark:text-accent tracking-tight">
-                                {siteName}
-                            </span>
-                        ) : null}
-                    </Link>
+                <div className="mx-auto flex h-16 sm:h-20 max-w-7xl items-center justify-between px-3 sm:px-4 gap-2 sm:gap-4">
+                    {/* Left: Menu Icon (Mobile & Tablet) & Logo */}
+                    <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => setMobileOpen(true)}
+                            className="flex lg:hidden size-9 sm:size-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition-all hover:bg-white/20 active:scale-95 cursor-pointer"
+                            title="Open Menu"
+                            aria-label="Open Menu"
+                        >
+                            <Menu className="size-5 sm:size-6 text-white" />
+                        </button>
 
-                    {/* Eye-Friendly Search Bar */}
-                    <div className="hidden flex-1 max-w-2xl md:block">
-                        <form onSubmit={handleSearchSubmit} className="flex items-center w-full rounded-full border border-border bg-muted/40 p-1 focus-within:border-primary focus-within:bg-background focus-within:ring-2 focus-within:ring-ring/20 transition-all shadow-2xs dark:bg-slate-800 dark:border-slate-700">
+                        <Link href="/" className="flex items-center shrink-0">
+                            {logo ? (
+                                <img src={logo} alt={siteName || "Logo"} className="h-8 sm:h-12 w-auto object-contain" />
+                            ) : siteName ? (
+                                <span suppressHydrationWarning className="text-lg sm:text-2xl font-black text-white dark:text-accent tracking-tight truncate max-w-[150px] sm:max-w-none">
+                                    {siteName}
+                                </span>
+                            ) : null}
+                        </Link>
+                    </div>
+
+                    {/* Desktop & Tablet Search Bar */}
+                    <div className="hidden flex-1 max-w-2xl sm:block mx-2 sm:mx-4">
+                        <form onSubmit={handleSearchSubmit} className="flex items-center w-full rounded-full border border-white/20 bg-white/10 p-1 focus-within:border-white focus-within:bg-white/20 transition-all shadow-2xs">
                             <input
                                 type="text"
                                 placeholder="Search products, fashion, electronics..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="w-full h-6 bg-transparent pl-3.5 pr-2 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                                className="w-full h-7 bg-transparent pl-4 pr-2 text-xs sm:text-sm text-white placeholder:text-white/70 outline-none"
                             />
                             <button
                                 type="submit"
-                                className="flex h-8 px-6 shrink-0 items-center gap-1.5 justify-center rounded-full btn-action-gold text-xs font-bold shadow-xs transition-all hover:scale-105 cursor-pointer"
+                                className="flex h-8 px-5 shrink-0 items-center gap-1.5 justify-center rounded-full btn-action-gold text-xs font-bold shadow-xs transition-all hover:scale-105 cursor-pointer"
                                 title="Search"
                             >
                                 <Search className="size-3.5 text-[#0B3C73]" />
@@ -118,7 +134,18 @@ const Navbar = () => {
                     </div>
 
                     {/* Right Utilities */}
-                    <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                        {/* Mobile & Tablet Search Toggle Button */}
+                        <button
+                            type="button"
+                            onClick={() => setMobileSearchOpen((prev) => !prev)}
+                            className="flex sm:hidden size-9 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition-all hover:bg-white/20 active:scale-95 cursor-pointer"
+                            title="Search"
+                            aria-label="Toggle Search"
+                        >
+                            <Search className="size-4.5 text-white" />
+                        </button>
+
                         <Link
                             href="/orders"
                             className="hidden items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-white/20 md:flex shrink-0 shadow-2xs group"
@@ -213,25 +240,41 @@ const Navbar = () => {
                             ) : (
                                 <Link
                                     href="/login"
-                                    className="inline-flex rounded-full bg-[#FFA800] hover:bg-[#e69500] text-[#0B3C73] px-5 py-2 text-xs font-black transition-all duration-200 hover:scale-105 shadow-xs"
+                                    className="inline-flex rounded-full bg-[#FFA800] hover:bg-[#e69500] text-[#0B3C73] px-4 sm:px-5 py-1.5 sm:py-2 text-xs font-black transition-all duration-200 hover:scale-105 shadow-xs"
                                 >
                                     Login
                                 </Link>
                             )
                         )}
-
-                        <button
-                            onClick={() => setMobileOpen(true)}
-                            className="flex size-9 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/20 md:hidden"
-                        >
-                            <Menu className="size-5" />
-                        </button>
                     </div>
                 </div>
             </div>
 
-            {/* Second Navigation Bar (Navy Blue Theme matching Footer lower section) */}
-            <nav className="hidden border-t border-white/10 md:block bg-[#072a52] dark:bg-[#051527] dark:border-slate-800">
+            {/* Mobile Expandable Search Bar */}
+            {mobileSearchOpen && (
+                <div className="sm:hidden border-t border-white/10 bg-[#072a52] dark:bg-[#051527] px-3 py-2.5 transition-all">
+                    <form onSubmit={handleSearchSubmit} className="flex items-center w-full rounded-full border border-white/20 bg-white/10 p-1">
+                        <input
+                            type="text"
+                            placeholder="Search products..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            autoFocus
+                            className="w-full h-7 bg-transparent pl-3 pr-2 text-xs text-white placeholder:text-white/70 outline-none"
+                        />
+                        <button
+                            type="submit"
+                            className="flex h-7 px-4 shrink-0 items-center gap-1 justify-center rounded-full btn-action-gold text-xs font-bold shadow-xs cursor-pointer"
+                        >
+                            <Search className="size-3.5 text-[#0B3C73]" />
+                            <span>Search</span>
+                        </button>
+                    </form>
+                </div>
+            )}
+
+            {/* Second Navigation Bar (Desktop Only) */}
+            <nav className="hidden border-t border-white/10 lg:block bg-[#072a52] dark:bg-[#051527] dark:border-slate-800">
                 <div className="relative mx-auto max-w-7xl px-4">
                     <div className="flex h-12 sm:h-13 items-center justify-between">
                         <div className="flex items-center gap-1.5">
@@ -318,9 +361,9 @@ const Navbar = () => {
                 </div>
             </nav>
 
-            {/* Mobile Drawer */}
+            {/* Mobile & Tablet Drawer */}
             {mobileOpen && (
-                <div className="fixed inset-0 z-100 md:hidden">
+                <div className="fixed inset-0 z-100 lg:hidden">
                     <div
                         className="absolute inset-0 bg-black/60 backdrop-blur-xs"
                         onClick={() => setMobileOpen(false)}
@@ -467,6 +510,9 @@ const Navbar = () => {
                 </div>
             )}
         </header>
+
+        <BottomNav onOpenMenu={() => setMobileOpen(true)} />
+    </>
     );
 };
 
