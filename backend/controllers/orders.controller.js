@@ -15,7 +15,6 @@ const createOrder = async (req, res) => {
         }
 
         const { paymentMethod, shippingAddress, deliveryArea } = req.body;
-
         const db = getDB();
 
         const cartsCollection = db.collection("carts");
@@ -54,6 +53,8 @@ const createOrder = async (req, res) => {
                     color: "$items.color",
                     colorImage: "$items.colorImage",
                     vendorId: "$product.vendorId",
+                    stock: "$product.stock",
+                    availabilityStatus: "$product.availabilityStatus",
                 },
             },
         ]).toArray();
@@ -62,6 +63,15 @@ const createOrder = async (req, res) => {
             return res.status(400).send({
                 message: "Cart is empty",
             });
+        }
+
+        for (const item of rawCart) {
+            if (item.stock === 0 || item.availabilityStatus === "Out of Stock") {
+                return res.status(400).send({ message: `${item.title} is out of stock` });
+            }
+            if (item.quantity > item.stock) {
+                return res.status(400).send({ message: `Only ${item.stock} ${item.title} available in stock` });
+            }
         }
 
         const cart = rawCart.map(item => {
@@ -82,42 +92,8 @@ const createOrder = async (req, res) => {
             };
         });
 
-        for (const item of cart) {
-            const product = await productsCollection.findOne({
-                _id: item.productId,
-            });
-
-            if (!product) {
-                return res.status(404).send({
-                    message: `${item.title} not found`,
-                });
-            }
-
-            if (
-                product.stock === 0 ||
-                product.availabilityStatus === "Out of Stock"
-            ) {
-                return res.status(400).send({
-                    message: `${item.title} is out of stock`,
-                });
-            }
-
-            if (item.quantity > product.stock) {
-                return res.status(400).send({
-                    message: `Only ${product.stock} ${item.title} available in stock`,
-                });
-            }
-        }
-
-        const totalItems = cart.reduce(
-            (sum, item) => sum + item.quantity,
-            0
-        );
-
-        const totalPrice = cart.reduce(
-            (sum, item) => sum + item.subtotal,
-            0
-        );
+        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+        const totalPrice = cart.reduce((sum, item) => sum + item.subtotal, 0);
 
         const FREE_SHIPPING_THRESHOLD = 1000;
         const SHIPPING_INSIDE_DHAKA = 60;
@@ -146,40 +122,32 @@ const createOrder = async (req, res) => {
         const result = await ordersCollection.insertOne(order);
         order._id = result.insertedId;
 
-        await cartsCollection.deleteOne({
-            userId: new ObjectId(req.user.id),
-        });
-
-        // Deduct product stock atomically
-        for (const item of cart) {
-            if (item.productId) {
-                const updatedProduct = await productsCollection.findOneAndUpdate(
+        // Perform stock updates and cart deletion asynchronously
+        Promise.all([
+            cartsCollection.deleteOne({ userId: new ObjectId(req.user.id) }),
+            ...cart.map(item =>
+                productsCollection.updateOne(
                     { _id: new ObjectId(item.productId), stock: { $gte: item.quantity } },
-                    { $inc: { stock: -item.quantity } },
-                    { returnDocument: "after" }
-                );
-                if (updatedProduct && updatedProduct.stock <= 0) {
-                    await productsCollection.updateOne(
-                        { _id: new ObjectId(item.productId) },
-                        { $set: { availabilityStatus: "Out of Stock", stock: 0 } }
-                    );
-                }
-            }
-        }
+                    { $inc: { stock: -item.quantity } }
+                )
+            )
+        ]).catch(err => console.error("Error updating stock/cart:", err));
 
-        clearCache();
-
-        sendInvoiceEmail(order).catch((err) => console.error("Error sending invoice email:", err));
-        sendPurchaseEvent(order, req);
-
+        // Send response immediately to user
         res.status(201).send({
             message: "Order placed successfully",
             insertedId: result.insertedId,
         });
 
+        // Non-blocking background tasks
+        setImmediate(() => {
+            clearCache();
+            sendInvoiceEmail(order).catch((err) => console.error("Error sending invoice email:", err));
+            sendPurchaseEvent(order, req);
+        });
+
     } catch (error) {
         console.log(error);
-
         res.status(500).send({
             message: "Internal Server Error",
         });
@@ -190,33 +158,39 @@ const createGuestOrder = async (req, res) => {
     try {
         const { items, paymentMethod, shippingAddress, deliveryArea } = req.body;
 
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).send({ message: "Cart is empty" });
+        }
+
         const db = getDB();
         const productsCollection = db.collection("products");
         const ordersCollection = db.collection("orders");
 
+        // Batch fetch all requested products in a single DB query
+        const productIds = items
+            .map(i => {
+                try { return new ObjectId(i.productId); } catch { return null; }
+            })
+            .filter(Boolean);
+
+        const dbProducts = await productsCollection.find({ _id: { $in: productIds } }).toArray();
+        const productMap = new Map(dbProducts.map(p => [p._id.toString(), p]));
+
         const cart = [];
 
         for (const item of items) {
-            const product = await productsCollection.findOne({
-                _id: new ObjectId(item.productId),
-            });
+            const product = productMap.get(item.productId?.toString());
 
             if (!product) {
-                return res.status(404).send({
-                    message: `Product not found`,
-                });
+                return res.status(404).send({ message: "Product not found" });
             }
 
             if (product.stock === 0 || product.availabilityStatus === "Out of Stock") {
-                return res.status(400).send({
-                    message: `${product.title} is out of stock`,
-                });
+                return res.status(400).send({ message: `${product.title} is out of stock` });
             }
 
             if (item.quantity > product.stock) {
-                return res.status(400).send({
-                    message: `Only ${product.stock} ${product.title} available in stock`,
-                });
+                return res.status(400).send({ message: `Only ${product.stock} ${product.title} available in stock` });
             }
 
             const effectivePrice = product.discountPercentage > 0
@@ -269,37 +243,32 @@ const createGuestOrder = async (req, res) => {
         const result = await ordersCollection.insertOne(order);
         order._id = result.insertedId;
 
-        // Deduct product stock atomically
-        for (const item of cart) {
-            if (item.productId) {
-                const updatedProduct = await productsCollection.findOneAndUpdate(
+        // Perform stock updates asynchronously
+        Promise.all(
+            cart.map(item =>
+                productsCollection.updateOne(
                     { _id: new ObjectId(item.productId), stock: { $gte: item.quantity } },
-                    { $inc: { stock: -item.quantity } },
-                    { returnDocument: "after" }
-                );
-                if (updatedProduct && updatedProduct.stock <= 0) {
-                    await productsCollection.updateOne(
-                        { _id: new ObjectId(item.productId) },
-                        { $set: { availabilityStatus: "Out of Stock", stock: 0 } }
-                    );
-                }
-            }
-        }
+                    { $inc: { stock: -item.quantity } }
+                )
+            )
+        ).catch(err => console.error("Error updating product stock:", err));
 
-        clearCache();
-
-        sendInvoiceEmail(order).catch((err) => console.error("Error sending invoice email:", err));
-        sendPurchaseEvent(order, req);
-
+        // Return HTTP 201 response immediately to the user
         res.status(201).send({
             message: "Order placed successfully",
             insertedId: result.insertedId,
             orderId: result.insertedId,
         });
 
+        // Non-blocking background tasks
+        setImmediate(() => {
+            clearCache();
+            sendInvoiceEmail(order).catch((err) => console.error("Error sending invoice email:", err));
+            sendPurchaseEvent(order, req);
+        });
+
     } catch (error) {
         console.log(error);
-
         res.status(500).send({
             message: "Internal Server Error",
         });
@@ -521,6 +490,7 @@ const getAllOrders = async (req, res) => {
                     .sort({
                         createdAt: -1
                     })
+                    .limit(200)
                     .toArray();
 
                 return {

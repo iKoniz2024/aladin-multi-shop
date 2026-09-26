@@ -222,7 +222,7 @@ const getBestSellingProductsInternal = async (db) => {
 };
 
 const getBestSellingIds = async (db) => {
-    return await withCache("bestSellingIdsSet", 30, async () => {
+    return await withCache("bestSellingIdsSet", 300, async () => {
         const bestProducts = await getBestSellingProductsInternal(db);
         return Array.from(new Set(bestProducts.map(p => (p._id ? p._id.toString() : ""))));
     });
@@ -248,19 +248,25 @@ const getAllProducts = async (req, res) => {
 
         if (search && search.trim()) {
             const cleanSearch = escapeRegex(search.trim());
-            const searchRegex = { $regex: cleanSearch, $options: "i" };
-            andConditions.push({
-                $or: [
-                    { title: searchRegex },
-                    { category: searchRegex },
-                    { primaryCategory: searchRegex },
-                    { categories: searchRegex },
-                    { brand: searchRegex },
-                    { description: searchRegex },
-                    { tags: searchRegex },
-                    { sku: searchRegex },
-                ]
+            const terms = cleanSearch.split(/\s+/).filter(Boolean);
+            const termConditions = terms.map((term) => {
+                const searchRegex = { $regex: term, $options: "i" };
+                return {
+                    $or: [
+                        { title: searchRegex },
+                        { category: searchRegex },
+                        { primaryCategory: searchRegex },
+                        { categories: searchRegex },
+                        { brand: searchRegex },
+                        { description: searchRegex },
+                        { tags: searchRegex },
+                        { sku: searchRegex },
+                    ]
+                };
             });
+            if (termConditions.length > 0) {
+                andConditions.push({ $and: termConditions });
+            }
         }
 
         if (category && category.trim()) {
@@ -294,10 +300,12 @@ const getAllProducts = async (req, res) => {
             andConditions.push({ brand: { $regex: `^${escapeRegex(brand.trim())}$`, $options: "i" } });
         }
 
-        if (req.user && req.user.role === "vendor") {
-            andConditions.push({ vendorId: req.user.id.toString() });
-        } else if (req.query.vendorId && req.query.vendorId.trim()) {
-            andConditions.push({ vendorId: req.query.vendorId.trim() });
+        const vendorQueryId = req.user && req.user.role === "vendor"
+            ? req.user.id.toString()
+            : (req.query.vendorId ? req.query.vendorId.trim() : "");
+
+        if (vendorQueryId) {
+            andConditions.push({ vendorId: vendorQueryId });
         }
 
         const query = andConditions.length > 0 ? { $and: andConditions } : {};
@@ -310,8 +318,8 @@ const getAllProducts = async (req, res) => {
             sortOption = { price: -1 };
         }
 
-        const cacheKey = `products_${page}_${limit}_${search}_${category}_${brand}_${sort}`;
-        const result = await withCache(cacheKey, 15, async () => {
+        const cacheKey = `products_${page}_${limit}_${search}_${category}_${collection}_${brand}_${sort}_${vendorQueryId}`;
+        const result = await withCache(cacheKey, 60, async () => {
             const bestSellingIds = await getBestSellingIds(db);
             const bestSellingIdsSet = new Set(bestSellingIds);
 
@@ -322,20 +330,20 @@ const getAllProducts = async (req, res) => {
 
             if (page && limit) {
                 const skip = (page - 1) * limit;
-                const totalProducts = Object.keys(query).length === 0 
+                const totalProducts = Object.keys(query).length === 0
                     ? await productsCollection.estimatedDocumentCount()
                     : await productsCollection.countDocuments(query);
 
                 const products = await productsCollection
                     .find(query)
-                    .project({ 
-                        description: 0, 
-                        dimensions: 0, 
-                        reviews: 0, 
-                        images: 0, 
-                        warrantyInformation: 0, 
-                        shippingInformation: 0, 
-                        returnPolicy: 0, 
+                    .project({
+                        description: 0,
+                        dimensions: 0,
+                        reviews: 0,
+                        images: 0,
+                        warrantyInformation: 0,
+                        shippingInformation: 0,
+                        returnPolicy: 0,
                         tags: 0,
                         sku: 0,
                         weight: 0,
@@ -356,14 +364,14 @@ const getAllProducts = async (req, res) => {
             } else {
                 const products = await productsCollection
                     .find(query)
-                    .project({ 
-                        description: 0, 
-                        dimensions: 0, 
-                        reviews: 0, 
-                        images: 0, 
-                        warrantyInformation: 0, 
-                        shippingInformation: 0, 
-                        returnPolicy: 0, 
+                    .project({
+                        description: 0,
+                        dimensions: 0,
+                        reviews: 0,
+                        images: 0,
+                        warrantyInformation: 0,
+                        shippingInformation: 0,
+                        returnPolicy: 0,
                         tags: 0,
                         sku: 0,
                         weight: 0,
@@ -371,6 +379,7 @@ const getAllProducts = async (req, res) => {
                         minimumOrderQuantity: 0
                     })
                     .sort(sortOption)
+                    .limit(100)
                     .toArray();
 
                 return {

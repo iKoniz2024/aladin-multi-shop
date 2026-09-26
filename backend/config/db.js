@@ -2,14 +2,6 @@ const { MongoClient, ServerApiVersion } = require("mongodb");
 const { setupIndexes } = require("../utils/setupIndexes");
 const { warmUpCache } = require("../utils/cache");
 
-if (!process.env.VERCEL) {
-    try {
-        const dns = require('dns');
-        dns.setServers(['8.8.8.8', '8.8.4.4']);
-    } catch (e) {
-        // Ignore DNS resolver override in restricted runtimes
-    }
-}
 
 const dbUser = encodeURIComponent(process.env.DB_USER || "");
 const dbPass = encodeURIComponent(process.env.DB_PASS || "");

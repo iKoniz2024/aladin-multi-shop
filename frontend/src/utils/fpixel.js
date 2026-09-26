@@ -13,10 +13,10 @@ export const event = (name, options = {}) => {
     try {
       const cleanOptions = {};
 
-      if (options.value !== undefined || options.currency !== undefined) {
+      if (options.value !== undefined || options.currency !== undefined || name === "Purchase" || name === "InitiateCheckout" || name === "AddToCart") {
         const rawVal = Number(options.value);
-        cleanOptions.value = isNaN(rawVal) ? 0 : Number(rawVal.toFixed(2));
-        cleanOptions.currency = String(options.currency || "BDT").toUpperCase().trim();
+        cleanOptions.value = isNaN(rawVal) || rawVal <= 0 ? 1 : Number(rawVal.toFixed(2));
+        cleanOptions.currency = "BDT";
       }
 
       if (options.content_name) {
@@ -27,7 +27,7 @@ export const event = (name, options = {}) => {
         cleanOptions.content_type = String(options.content_type);
       }
 
-      if (Array.isArray(options.content_ids)) {
+      if (Array.isArray(options.content_ids) && options.content_ids.length > 0) {
         cleanOptions.content_ids = options.content_ids.map((id) => String(id));
       }
 
@@ -36,7 +36,7 @@ export const event = (name, options = {}) => {
       }
 
       Object.keys(options).forEach((key) => {
-        if (!(key in cleanOptions)) {
+        if (!(key in cleanOptions) && options[key] !== undefined && options[key] !== null) {
           cleanOptions[key] = options[key];
         }
       });

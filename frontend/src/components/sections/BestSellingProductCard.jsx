@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Trophy, ShoppingCart, Zap } from "lucide-react";
+import { Trophy, ShoppingCart, Zap, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatBDT } from "@/utils/currency";
 import OrderModal from "@/components/ui/OrderModal";
+import ProductImageModal from "@/components/ui/ProductImageModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddToCart } from "@/hooks/useAddToCart";
 import useSettings from "@/hooks/useSettings";
@@ -16,8 +17,7 @@ export default function BestSellingProductCard({ product, index }) {
   const router = useRouter();
   const { addToCart } = useAddToCart();
   const { siteName } = useSettings();
-  const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState("checkout");
+  const [showImageModal, setShowImageModal] = useState(false);
   const { user } = useAuth();
   const isAdminOrVendor = user?.role === "admin" || user?.role === "vendor";
   const hasDiscount = product.discountPercentage > 0;
@@ -38,14 +38,29 @@ export default function BestSellingProductCard({ product, index }) {
 
   const handleDirectAddToCart = (e) => {
     e.preventDefault();
-    setModalMode("cart");
-    setShowModal(true);
+    e.stopPropagation();
+    if (hasOptions) {
+      router.push(`/product/${product._id}`);
+      return;
+    }
+    addToCart(product, 1);
   };
 
   const handleDirectOrderNow = (e) => {
     e.preventDefault();
-    setModalMode("checkout");
-    setShowModal(true);
+    e.stopPropagation();
+    if (hasOptions) {
+      router.push(`/product/${product._id}`);
+      return;
+    }
+    addToCart(product, 1);
+    router.push("/checkout");
+  };
+
+  const handleOpenImageModal = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowImageModal(true);
   };
 
   return (
@@ -66,13 +81,23 @@ export default function BestSellingProductCard({ product, index }) {
         className="w-[270px] max-w-full h-auto mx-auto shrink-0"
       >
         <div className="group flex h-auto w-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-          <Link href={`/product/${product._id}`} className="relative h-[180px] w-full overflow-hidden bg-muted/40 block shrink-0 p-2 flex items-center justify-center">
+          <Link href={`/product/${product._id}`} className="relative h-[180px] w-full overflow-hidden bg-muted/40 block shrink-0 p-2 flex items-center justify-center group/img">
             <img
               src={product.thumbnail || product.images?.[0] || undefined}
               alt={product.title}
-              className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+              className="h-full w-full object-contain transition-transform duration-500 ease-out group-hover:scale-120 group-hover:drop-shadow-md"
               loading="lazy"
             />
+
+            {/* Quick View Side Eye Button */}
+            <button
+              type="button"
+              onClick={handleOpenImageModal}
+              className="absolute bottom-2 right-2 z-20 flex size-8 items-center justify-center rounded-full bg-background/90 text-foreground shadow-md backdrop-blur-md hover:bg-primary hover:text-primary-foreground active:scale-90 transition-all duration-300 opacity-0 group-hover/img:opacity-100 transform translate-y-2 group-hover/img:translate-y-0 cursor-pointer border border-border/60"
+              title="Enlarge Image"
+            >
+              <Eye className="size-4" />
+            </button>
 
             {hasDiscount && (
               <div className="absolute left-2 top-2 z-10 rounded-full badge-gold px-2 py-0.5 text-[10px] font-black tracking-tight shadow-sm">
@@ -161,14 +186,13 @@ export default function BestSellingProductCard({ product, index }) {
         </div>
       </motion.div>
 
-      {!isAdminOrVendor && (
-        <OrderModal
-          product={product}
-          open={showModal}
-          onClose={() => setShowModal(false)}
-          mode={modalMode}
-        />
-      )}
+      <ProductImageModal
+        open={showImageModal}
+        onClose={() => setShowImageModal(false)}
+        image={product.thumbnail || product.images?.[0]}
+        images={product.images && product.images.length > 0 ? product.images : [product.thumbnail].filter(Boolean)}
+        title={product.title}
+      />
     </>
   );
 }

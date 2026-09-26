@@ -5,7 +5,7 @@ export const metadata = {
   title: "Home",
 };
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 async function fetchHomeData() {
   const baseUrl = getApiUrl();
@@ -14,7 +14,7 @@ async function fetchHomeData() {
     try {
       const res = await fetch(url, {
         next: { revalidate: 60 },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(4000),
       });
       if (res.ok) {
         return await res.json();

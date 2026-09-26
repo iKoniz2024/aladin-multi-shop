@@ -43,7 +43,7 @@ const sendPurchaseEvent = async (order, req) => {
         const pid = (item.pixelId || "").trim();
         const token = (item.accessToken || "").trim();
         const testCode = (item.testEventCode || "").trim();
-        if (pid && token) {
+        if (pid && token && !token.toLowerCase().includes("demo") && !token.includes("123456")) {
           pixelConfigs.push({ name: pixelName || "Meta Pixel", pixelId: pid, accessToken: token, testEventCode: testCode });
         }
       });
@@ -55,19 +55,24 @@ const sendPurchaseEvent = async (order, req) => {
       const topToken = settings.metaAccessToken.trim();
       const topTestCode = (settings.metaTestEventCode || "").trim();
       const topName = (settings.metaPixelName || "Primary Meta Pixel").trim();
-      topPids.forEach((pid) => {
-        pixelConfigs.push({ name: topName, pixelId: pid, accessToken: topToken, testEventCode: topTestCode });
-      });
+      if (topToken && !topToken.toLowerCase().includes("demo") && !topToken.includes("123456")) {
+        topPids.forEach((pid) => {
+          pixelConfigs.push({ name: topName, pixelId: pid, accessToken: topToken, testEventCode: topTestCode });
+        });
+      }
     }
 
     // Direct fallback to environment variables if database configuration is not yet saved
     if (pixelConfigs.length === 0 && process.env.META_PIXEL_ID && process.env.META_ACCESS_TOKEN) {
-      pixelConfigs.push({
-        name: "Env Meta Pixel",
-        pixelId: process.env.META_PIXEL_ID.trim(),
-        accessToken: process.env.META_ACCESS_TOKEN.trim(),
-        testEventCode: (process.env.META_TEST_EVENT_CODE || "").trim(),
-      });
+      const envToken = process.env.META_ACCESS_TOKEN.trim();
+      if (envToken && !envToken.toLowerCase().includes("demo") && !envToken.includes("123456")) {
+        pixelConfigs.push({
+          name: "Env Meta Pixel",
+          pixelId: process.env.META_PIXEL_ID.trim(),
+          accessToken: envToken,
+          testEventCode: (process.env.META_TEST_EVENT_CODE || "").trim(),
+        });
+      }
     }
 
     if (pixelConfigs.length === 0) {

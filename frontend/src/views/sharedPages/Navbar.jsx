@@ -13,6 +13,9 @@ import useSettings from "@/hooks/useSettings";
 import { getLocalCartCount } from "@/utils/localCart";
 import { useAuth } from "@/hooks/useAuth";
 
+import { getProducts } from "@/services/product.api";
+import { formatBDT } from "@/utils/currency";
+
 const Navbar = () => {
     const { cartCount, refetchCartCount } = useCart();
     const { theme, toggleTheme } = useTheme();
@@ -21,16 +24,21 @@ const Navbar = () => {
     const router = useRouter();
     const pathname = usePathname();
     const [search, setSearch] = useState("");
+    const [searchFocused, setSearchFocused] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [mobileCatOpen, setMobileCatOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
     const profileRef = useRef(null);
+    const searchRef = useRef(null);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (profileRef.current && !profileRef.current.contains(event.target)) {
                 setProfileOpen(false);
+            }
+            if (searchRef.current && !searchRef.current.contains(event.target)) {
+                setSearchFocused(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);

@@ -110,14 +110,17 @@ export default function AdminProducts({ children }) {
   const { data: categoriesData } = useQuery({
     queryKey: ["categories"],
     queryFn: getCategories,
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 5 * 60 * 1000,
   });
 
   const categories = categoriesData ?? [];
   const categorySlugs = getAllCategorySlugs(categories);
 
   const products = useMemo(() => data?.products ?? [], [data]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter, stockFilter, discountFilter]);
 
   const filteredProducts = useMemo(() => products.filter((product) => {
     // Strict separation: Vendors ONLY see products explicitly owned by them
@@ -126,20 +129,34 @@ export default function AdminProducts({ children }) {
         return false;
       }
     }
-    const matchesSearch =
-      product.title.toLowerCase().includes(search.toLowerCase()) ||
-      product.brand?.toLowerCase().includes(search.toLowerCase()) ||
-      product.category?.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = !categoryFilter || product.category === categoryFilter;
+    const searchLower = search.trim().toLowerCase();
+    const matchesSearch = !searchLower || (
+      (product.title && String(product.title).toLowerCase().includes(searchLower)) ||
+      (product.brand && String(product.brand).toLowerCase().includes(searchLower)) ||
+      (product.category && String(product.category).toLowerCase().includes(searchLower)) ||
+      (product.primaryCategory && String(product.primaryCategory).toLowerCase().includes(searchLower)) ||
+      (product.sku && String(product.sku).toLowerCase().includes(searchLower)) ||
+      (Array.isArray(product.tags) && product.tags.some(t => typeof t === "string" && t.toLowerCase().includes(searchLower)))
+    );
+
+    const catFilterLower = categoryFilter.trim().toLowerCase();
+    const matchesCategory = !catFilterLower || (
+      (product.category && String(product.category).toLowerCase() === catFilterLower) ||
+      (product.primaryCategory && String(product.primaryCategory).toLowerCase() === catFilterLower) ||
+      (Array.isArray(product.categories) && product.categories.some(c => String(c).toLowerCase() === catFilterLower))
+    );
+
     const matchesStock =
       stockFilter === "" ||
       (stockFilter === "in-stock" && product.stock > 10) ||
       (stockFilter === "low-stock" && product.stock > 0 && product.stock <= 10) ||
       (stockFilter === "out-of-stock" && product.stock === 0);
+
     const matchesDiscount =
       discountFilter === "" ||
       (discountFilter === "with-discount" && product.discountPercentage > 0) ||
       (discountFilter === "no-discount" && product.discountPercentage === 0);
+
     return matchesSearch && matchesCategory && matchesStock && matchesDiscount;
   }), [products, search, categoryFilter, stockFilter, discountFilter, isVendor, vendorUserId]);
 

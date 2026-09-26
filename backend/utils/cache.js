@@ -37,61 +37,21 @@ const warmUpCache = async (db) => {
     try {
         console.log("Warming up cache for products, orders, categories, and banners...");
 
-        // 1. Warm up Banners
+        // 1. Warm up Banners (TTL 300 seconds = 5 min)
         const bannersCollection = db.collection("banners");
-        await withCache("banners", 15, async () => {
+        await withCache("banners", 300, async () => {
             return await bannersCollection.find({}).sort({ createdAt: -1 }).toArray();
         });
 
-        // 2. Warm up Categories
+        // 2. Warm up Categories (TTL 300 seconds = 5 min)
         const categoriesCollection = db.collection("categories");
-        await withCache("categories_null_null_", 15, async () => {
-            return await categoriesCollection.find({}).sort({ createdAt: -1 }).toArray();
+        await withCache("categories_null_null_", 300, async () => {
+            return await categoriesCollection.find({}).sort({ sortOrder: 1, name: 1 }).toArray();
         });
 
-        // 3. Warm up Orders
-        const ordersCollection = db.collection("orders");
-        await withCache("orders_null_null_", 15, async () => {
-            const orders = await ordersCollection.find({})
-                .project({
-                    orderStatus: 1,
-                    paymentMethod: 1,
-                    paymentStatus: 1,
-                    totalPrice: 1,
-                    totalItems: 1,
-                    deliveryArea: 1,
-                    shippingAddress: {
-                        fullName: 1,
-                        phone: 1,
-                        address: 1
-                    },
-                    createdAt: 1,
-                    updatedAt: 1,
-                    items: {
-                        $map: {
-                            input: { $ifNull: ["$items", []] },
-                            as: "item",
-                            in: {
-                                title: "$$item.title",
-                                thumbnail: "$$item.thumbnail",
-                                quantity: "$$item.quantity",
-                                price: "$$item.price",
-                                subtotal: "$$item.subtotal"
-                            }
-                        }
-                    }
-                })
-                .sort({ createdAt: -1 })
-                .toArray();
-            return {
-                totalOrders: orders.length,
-                orders
-            };
-        });
-
-        // 4. Warm up Products
+        // 3. Warm up Products (Recent 50 products for quick home page load, TTL 120 seconds)
         const productsCollection = db.collection("products");
-        await withCache("products_null_null____", 15, async () => {
+        await withCache("products_1_12_newest", 120, async () => {
             const products = await productsCollection.find({})
                 .project({ 
                     description: 0, 
@@ -108,6 +68,7 @@ const warmUpCache = async (db) => {
                     minimumOrderQuantity: 0
                 })
                 .sort({ _id: -1 })
+                .limit(50)
                 .toArray();
             return {
                 totalProducts: products.length,

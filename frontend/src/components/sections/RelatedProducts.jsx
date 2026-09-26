@@ -145,23 +145,29 @@ function CompactProductCard({ product, index }) {
 }
 
 export default function RelatedProducts({ currentProduct }) {
-  const category = currentProduct?.category;
+  const categoryRaw = currentProduct?.category || currentProduct?.primaryCategory;
+  const categoryParam = typeof categoryRaw === "object"
+    ? categoryRaw?.slug || categoryRaw?.name || categoryRaw?._id
+    : categoryRaw;
   const currentId = currentProduct?._id;
 
   const { data: relatedProducts = [], isLoading } = useQuery({
-    queryKey: ["related-products", category, currentId],
+    queryKey: ["related-products", categoryParam, currentId],
     queryFn: async () => {
       let result = [];
 
-      if (category) {
-        // Fetch products in the same category
-        const response = await getProducts({ category, limit: 12 });
-        const prods = response?.products || (Array.isArray(response) ? response : []);
-        result = prods.filter((p) => p._id !== currentId);
+      if (categoryParam) {
+        try {
+          const response = await getProducts({ category: categoryParam, limit: 12 });
+          const prods = response?.products || (Array.isArray(response) ? response : []);
+          result = prods.filter((p) => p._id && p._id.toString() !== currentId?.toString());
+        } catch (err) {
+          console.error("Error fetching category related products:", err);
+        }
       }
 
-      // ONLY if there are ZERO products in the same category, fallback to mixed New Arrivals & Best Selling
-      if (result.length === 0) {
+      // If fewer than 4 products found in category, fill up with New Arrivals / Best Sellers
+      if (result.length < 4) {
         try {
           const [newRes, bestRes] = await Promise.all([
             getNewArrivals().catch(() => ({})),
@@ -169,25 +175,24 @@ export default function RelatedProducts({ currentProduct }) {
           ]);
 
           const newProds = (newRes?.products || (Array.isArray(newRes) ? newRes : []))
-            .filter((p) => p._id !== currentId)
+            .filter((p) => p._id && p._id.toString() !== currentId?.toString())
             .map((p) => ({ ...p, badge: p.badge || "new-arrival" }));
 
           const bestProds = (bestRes?.products || (Array.isArray(bestRes) ? bestRes : []))
-            .filter((p) => p._id !== currentId)
+            .filter((p) => p._id && p._id.toString() !== currentId?.toString())
             .map((p) => ({ ...p, badge: p.badge || "best-seller" }));
 
-          // Interleave New Arrivals and Best Selling products
-          const mixed = [];
-          const seenIds = new Set([currentId]);
+          const mixed = [...result];
+          const seenIds = new Set([currentId?.toString(), ...result.map(r => r._id?.toString())]);
           const maxLength = Math.max(newProds.length, bestProds.length);
 
           for (let i = 0; i < maxLength; i++) {
-            if (i < newProds.length && !seenIds.has(newProds[i]._id)) {
-              seenIds.add(newProds[i]._id);
+            if (i < newProds.length && !seenIds.has(newProds[i]._id?.toString())) {
+              seenIds.add(newProds[i]._id?.toString());
               mixed.push(newProds[i]);
             }
-            if (i < bestProds.length && !seenIds.has(bestProds[i]._id)) {
-              seenIds.add(bestProds[i]._id);
+            if (i < bestProds.length && !seenIds.has(bestProds[i]._id?.toString())) {
+              seenIds.add(bestProds[i]._id?.toString());
               mixed.push(bestProds[i]);
             }
           }
@@ -201,6 +206,7 @@ export default function RelatedProducts({ currentProduct }) {
       return result.slice(0, 12);
     },
     enabled: !!currentProduct,
+    staleTime: 1000 * 60 * 5,
   });
 
   if (!isLoading && relatedProducts.length === 0) {

@@ -28,6 +28,7 @@ import { Helmet } from "react-helmet-async";
 import useSettings from "@/hooks/useSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { event as trackPixelEvent } from "@/utils/fpixel";
+import ProductImageZoom from "@/components/ui/ProductImageZoom";
 
 
 
@@ -256,18 +257,11 @@ export default function ProductDetails({ children }) {
         <div className="flex flex-col gap-6 lg:flex-row">
           {/* Left - Images lg:w-[35%] */}
           <div className="flex flex-col gap-3 lg:w-[35%]">
-            <div className="relative overflow-hidden rounded-2xl border border-border bg-secondary/30 p-2">
-              <img
-                src={mainDisplayImage}
-                alt={product.title}
-                className="aspect-square w-full rounded-xl object-cover"
-              />
-              {hasDiscount && (
-                <div className="absolute left-3 top-3 z-10 badge-gold px-2.5 py-1 text-xs sm:text-sm shadow-xs">
-                  -{Math.round(product.discountPercentage)}%
-                </div>
-              )}
-            </div>
+            <ProductImageZoom
+              src={mainDisplayImage}
+              alt={product.title}
+              discountBadge={hasDiscount ? `-${Math.round(product.discountPercentage)}%` : null}
+            />
 
             {allImages.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1">

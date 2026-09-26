@@ -1,14 +1,15 @@
 "use client";
 
 import Link from 'next/link';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
-import { Package, Eye, Trash2, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Package, Eye, Trash2, ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { getAllOrders, updateOrderStatus, deleteOrder } from "@/services/order.api";
 import { Button } from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Helmet } from "react-helmet-async";
 import useSettings from "@/hooks/useSettings";
@@ -35,6 +36,7 @@ export default function AdminOrders({ children }) {
   const { siteName } = useSettings();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState(null);
   const [page, setPage] = useState(1);
   const limit = 10;
@@ -111,10 +113,21 @@ export default function AdminOrders({ children }) {
     },
   });
 
-  const filteredOrders =
-    statusFilter === "all"
-      ? orders
-      : orders.filter((o) => o.orderStatus === statusFilter);
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  const filteredOrders = orders.filter((o) => {
+    const matchesStatus = statusFilter === "all" || o.orderStatus === statusFilter;
+    const searchLower = search.trim().toLowerCase();
+    const matchesSearch = !searchLower || (
+      (o._id && o._id.toLowerCase().includes(searchLower)) ||
+      (o.shippingAddress?.fullName && o.shippingAddress.fullName.toLowerCase().includes(searchLower)) ||
+      (o.shippingAddress?.phone && o.shippingAddress.phone.toLowerCase().includes(searchLower)) ||
+      (o.shippingAddress?.address && o.shippingAddress.address.toLowerCase().includes(searchLower))
+    );
+    return matchesStatus && matchesSearch;
+  });
 
   const totalPages = Math.ceil(filteredOrders.length / limit);
   const paginatedOrders = filteredOrders.slice((page - 1) * limit, page * limit);
@@ -146,31 +159,43 @@ export default function AdminOrders({ children }) {
         </h1>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => setStatusFilter("all")}
-          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-            statusFilter === "all"
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border bg-card text-muted-foreground hover:bg-muted"
-          }`}
-        >
-          All ({orders.length})
-        </button>
-        {statusOptions.map((status) => (
+      <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search order by customer, phone, or ID..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-2">
           <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
+            onClick={() => setStatusFilter("all")}
             className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-              statusFilter === status
+              statusFilter === "all"
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-card text-muted-foreground hover:bg-muted"
             }`}
           >
-            {formatStatus(status)}
-            {statusCounts[status] ? ` (${statusCounts[status]})` : ""}
+            All ({orders.length})
           </button>
-        ))}
+          {statusOptions.map((status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                statusFilter === status
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {formatStatus(status)}
+              {statusCounts[status] ? ` (${statusCounts[status]})` : ""}
+            </button>
+          ))}
+        </div>
       </div>
 
       {isLoading ? (
